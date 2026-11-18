@@ -322,7 +322,14 @@ export function reconcileSessionSkills(
         // Plugin definitions are loaded by options.plugins and only contribute
         // their qualified id to the SDK skills selector.
         if (skill.source === 'plugin') continue;
-        fs.symlinkSync(skill.path, path.join(staging, skill.id));
+        // Windows 普通用户没有 SeCreateSymbolicLinkPrivilege，fs.symlink 会
+        // 直接 EPERM。Skill 都是目录，用 junction 可以在未开启开发者模式时
+        // 创建链接；非 Windows 平台保持原来的 symlink 语义。
+        fs.symlinkSync(
+          skill.path,
+          path.join(staging, skill.id),
+          process.platform === 'win32' ? 'junction' : undefined,
+        );
       }
     }
     if (fs.existsSync(skillsDir)) fs.renameSync(skillsDir, previous);
